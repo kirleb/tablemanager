@@ -14,12 +14,19 @@ function TableManager(selector, options) {
     headingNames: '',
     valueRows: '',
     currentSorting: {
-      column: '',
-      direction: '',
+      column: 'Person1', // make these options
+      direction: true,
     },
     icons: options.icons || defaultIcons,
+    init() {
+      this.update();
+      if (!this.currentSorting || !this.currentSorting.column) return;
+      this.sortColumn(
+        this.currentSorting.column,
+        this.currentSorting.direction
+      );
+    },
     update() {
-      console.log(this.sortAscendingIcon);
       this.table = document.querySelector(selector);
       if (!this.table)
         return console.error(
@@ -38,13 +45,26 @@ function TableManager(selector, options) {
       this.headings.forEach((heading, index) => {
         var columnName = this.headingNames[index];
         heading.dataset.column = columnName;
+        if (
+          !options.sorter ||
+          (options.excludeFromSort &&
+            options.excludeFromSort.includes(columnName))
+        )
+          return;
         heading.onclick = () => this.toggleSortColumn(columnName);
+        heading.style.cursor = 'pointer';
       });
       return this;
     },
     updateValueRows() {
       this.valueRows = [...this.tBodies[0].rows];
       return this;
+    },
+    updateSorting() {
+      this.sortColumn(
+        this.currentSorting.column,
+        this.currentSorting.direction
+      );
     },
     deleteAllValueRows() {
       this.tBodies.forEach((tBody) => {
@@ -55,21 +75,23 @@ function TableManager(selector, options) {
       this.updateValueRows();
       return this;
     },
-    appendValueRows(rows, tbody) {
+    appendValueRows(rows, tBodyIndex, noSort) {
       if (!rows)
         return console.error(
           'TableManager: appendValueRows takes an array of row data'
         );
-      var tBody = this.tBodies[tbody] || this.tBodies[0];
+      var tBody = this.tBodies[tBodyIndex] || this.tBodies[0];
       rows.forEach((row) => {
         tBody.append(row);
       });
       this.updateValueRows();
+      console.log(noSort);
+      if (!noSort) this.updateSorting();
       return this;
     },
-    replaceValueRows(rows) {
+    replaceValueRows(rows, tBodyIndex, noSort) {
       this.deleteAllValueRows();
-      this.appendValueRows(rows);
+      this.appendValueRows(rows, tBodyIndex, noSort);
       return this;
     },
     makeRowFromData(data) {
@@ -109,7 +131,8 @@ function TableManager(selector, options) {
         var returnValue = value1 > value2 ? 1 : value1 === value2 ? 0 : -1;
         return direction ? returnValue : -returnValue;
       });
-      this.replaceValueRows(this.valueRows).currentSorting = {
+      this.replaceValueRows(this.valueRows, false, true);
+      this.currentSorting = {
         column: column,
         direction: direction,
       };
@@ -130,8 +153,6 @@ function TableManager(selector, options) {
     },
     addIconToCell(column, icon) {
       // not working yet
-      console.log(icon);
-      console.log(this.headings[this.headingNames.indexOf(column)]);
       this.headings[this.headingNames.indexOf(column)].append(icon);
       return this;
     },
@@ -151,15 +172,17 @@ function TableManager(selector, options) {
     },
   };
 
-  manager.update();
+  manager.init();
 
   return manager;
 }
 
-var tableManager = TableManager('table');
+var tableManager = TableManager('table', {
+  sorter: true,
+  excludeFromSort: ['Person1'],
+});
 console.log(tableManager.valueRows);
-console.log();
-var newRows = tableManager.deleteAllValueRows().makeMultipleRowsFromData([
+var newRows = tableManager.makeMultipleRowsFromData([
   {
     Person2: 'bread',
     Person1: 'cheese',
@@ -272,10 +295,10 @@ var newRows = tableManager.deleteAllValueRows().makeMultipleRowsFromData([
   },
 ]);
 console.log(tableManager.valueRows);
-
-tableManager.appendValueRows(newRows);
+// If I update the sorting in the append it becomes recursive because sort uses append (fixed it by giving the append an option not to sort)
+tableManager.replaceValueRows(newRows);
 console.log(tableManager.valueRows);
-tableManager.toggleSortColumn('Person2');
-tableManager.toggleSortColumn('Person2');
-tableManager.toggleSortColumn('Person2');
-tableManager.toggleSortColumn('Person2');
+// tableManager.toggleSortColumn('Person2');
+// tableManager.toggleSortColumn('Person2');
+// tableManager.toggleSortColumn('Person2');
+// tableManager.toggleSortColumn('Person2');
